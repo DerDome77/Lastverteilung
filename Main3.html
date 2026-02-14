@@ -81,8 +81,8 @@
             <div class="item" id="G1" data-type="g" data-watts="21000">Durchlauferhitzer (21.000W)</div>
             <div class="item" id="G2" data-type="g" data-watts="11000">Ladesäule Parkplatz (11.000W)</div>
             <div class="item" id="G3" data-type="g" data-watts="5500">Hebebühne Werkstatt (5.500W)</div>
-            <div class="item" id="G4" data-type="g" data-watts="1600" data-mon="true">IT-Rack Server (1.600W)</div>
-            <div class="item" id="G5" data-type="g" data-watts="900" data-mon="true">Flurlicht (900W)</div>
+            <div class="item" id="G4" data-type="g" data-watts="1600">IT-Rack Server (1.600W)</div>
+            <div class="item" id="G5" data-type="g" data-watts="900">Flurlicht (900W)</div>
             <div class="item" id="G6" data-type="g" data-watts="2400">Arbeitsplätze 1.OG (2.400W)</div>
             <div class="item" id="G7" data-type="g" data-watts="2200">Arbeitsplätze EG (2.200W)</div>
             <div class="item" id="G8" data-type="g" data-watts="1100">Kopierstation (1.100W)</div>
@@ -94,9 +94,9 @@
             <div class="item" id="G14" data-type="g" data-watts="900">Garagentor-Antrieb (900W)</div>
             <div class="item" id="G15" data-type="g" data-watts="600">Außenstrahler Logo (600W)</div>
             <div class="item" id="G16" data-type="g" data-watts="2400">Heizungspumpen (2.400W)</div>
-            <div class="item" id="G17" data-type="g" data-watts="150" data-saf="true">BMA Zentrale (150W)</div>
-            <div class="item" id="G18" data-type="g" data-watts="350" data-saf="true">Akku-Notleuchten (350W)</div>
-            <div class="item" id="G19" data-type="g" data-watts="410" data-saf="true">Fahrstuhl-Modul (410W)</div>
+            <div class="item" id="G17" data-type="g" data-watts="150">BMA Zentrale (150W)</div>
+            <div class="item" id="G18" data-type="g" data-watts="350">Akku-Notleuchten (350W)</div>
+            <div class="item" id="G19" data-type="g" data-watts="410">Fahrstuhl-Modul (410W)</div>
             <div class="item" id="G20" data-type="g" data-watts="1100">Alarmanlage & Kamera (1.100W)</div>
             <div class="item" id="G21" data-type="g" data-watts="2000">E-Bike Station (2.000W)</div>
         </div>
@@ -250,6 +250,7 @@
         let allOk = true;
         const sIds = ["ST1", "ST2", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"];
         
+        // ÜBERLAST-PRÜFUNG
         sIds.forEach(sId => {
             let sEl = document.getElementById(sId);
             let max = parseInt(sEl.getAttribute('data-max'));
@@ -271,19 +272,15 @@
             }
         });
 
-        if(!(connections['G4'] && connections['G5'] && connections['G4'][0] === connections['G5'][0])) {
-            log.innerHTML += "<p style='color:red;'>❌ IT-Fehler: G4 & G5 koppeln!</p>"; allOk = false;
-        }
-
+        // SICHERHEITSBELEGUNG S12
         let safetyCorrect = connections['G17']?.includes('S12') && connections['G18']?.includes('S12') && connections['G19']?.includes('S12');
         if(!safetyCorrect) { log.innerHTML += "<p style='color:red;'>❌ S12 Sicherheitsbelegung fehlt!</p>"; allOk = false; }
 
         if(allOk) {
             log.innerHTML += "<h2 style='color:green;'>Anlage erfolgreich abgenommen!</h2>";
-            // Änderungen nach Erfolg:
-            document.getElementById('instruction-box').style.display = 'none'; // Anleitung weg
-            document.getElementById('submit-btn').style.display = 'none'; // Submit weg
-            document.getElementById('next-step-btn').style.display = 'inline-block'; // Weiter Button her
+            document.getElementById('instruction-box').style.display = 'none'; 
+            document.getElementById('submit-btn').style.display = 'none'; 
+            document.getElementById('next-step-btn').style.display = 'inline-block'; 
         }
         log.scrollIntoView();
     }
