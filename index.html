@@ -252,9 +252,6 @@
             log.style.display = 'block'; log.innerHTML = "<h3>Abnahme-Checkliste</h3>";
             let allOk = true;
 
-            if (connections['G4'][0] !== connections['G5'][0]) {
-                log.innerHTML += "<p style='color:red;'>❌ Kopplungs-Fehler: IT & Licht müssen gemeinsam hängen.</p>";
-                allOk = false;
             }
             if(!connections['G7']?.includes('S12') || !connections['G8']?.includes('S12')) {
                 log.innerHTML += "<p style='color:red;'>❌ Sicherheits-Fehler: BMA & Notlicht müssen auf S12.</p>";
@@ -274,7 +271,6 @@
                         <h4>📋 Anlagen-Zusammenfassung (Info)</h4>
                         <ul>
                             <li><b>Notstromversorgung:</b> Die Brandmeldeanlage (G7) und die Notbeleuchtung (G8) sind auf dem autarken Kreis S12 gesichert.</li>
-                            <li><b>IT-Wartung:</b> Die Kopplung von IT-Rack (G5) und Beleuchtung (G4) stellt sicher, dass Techniker bei Arbeiten an der IT nicht im Dunkeln stehen (gemeinsame Freischaltung).</li>
                             <li><b>Lastmanagement:</b> Die schwere Last von Maschine A (5kW) wurde erfolgreich auf mehrere Stromkreise verteilt, um Leitungserwärmung zu vermeiden.</li>
                         </ul>
                     </div>`;
@@ -287,4 +283,5 @@
 </body>
 
 </html>
+
 
