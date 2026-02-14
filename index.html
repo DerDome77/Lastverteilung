@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBH Lastverteilung Master</title>
+    <style>
+        :root { 
+            --ebh-blue: #003366; 
+            --ebh-gold: #ffcc00; 
+            --ebh-green: #28a745;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+        
+        /* Startseite */
+        #start-page {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; text-align: center; background: linear-gradient(135deg, var(--ebh-blue) 0%, #001a33 100%);
+            color: white; padding: 20px;
+        }
+        .card { background: white; color: #333; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 500px; }
+        .btn-start { background: var(--ebh-gold); color: var(--ebh-blue); margin-top: 20px; font-size: 18px; padding: 12px 25px; cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.3s; }
+        
+        /* Simulation */
+        #sim-page { display: none; padding: 20px; }
+        .header-bar { background: var(--ebh-blue); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .container { display: flex; justify-content: space-around; gap: 20px; }
+        .column { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; width: 48%; min-height: 500px; }
+        
+        .item { padding: 10px; margin: 8px 0; background: #f8f9fa; cursor: pointer; border: 1px solid #dee2e6; border-radius: 6px; font-size: 0.9em; transition: 0.2s; position: relative; }
+        .item:hover { border-color: var(--ebh-blue); }
+        .selected { background: var(--ebh-gold) !important; border-color: orange !important; }
+        .connected-g { background: #d4edda !important; color: #155724; cursor: default; }
+        .emergency-circuit { border: 2px solid #dc3545 !important; }
+
+        .load-info { font-size: 0.8em; font-weight: bold; margin-top: 5px; color: #555; }
+        .load-bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; margin-top: 5px; overflow: hidden; }
+        .load-bar-fill { height: 100%; width: 0%; background: #28a745; transition: width 0.3s; }
+        
+        .instructions { background: #fffdeb; border: 1px solid #ffeeba; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em; }
+        .split-btn { background: var(--ebh-blue); color: white; border: none; border-radius: 3px; padding: 3px 8px; font-size: 0.75em; cursor: pointer; margin-top: 5px; display: block; }
+        .delete-btn { background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; font-size: 0.7em; float: right; cursor: pointer; }
+        
+        /* Infobox im Protokoll */
+        .info-summary { background: #f0f7ff; border-left: 5px solid var(--ebh-blue); padding: 15px; margin-top: 15px; text-align: left; font-size: 0.85em; }
+        .info-summary h4 { margin-top: 0; color: var(--ebh-blue); }
+
+        .action-area { text-align: center; margin-top: 20px; }
+        #submit-btn, #next-step-btn { padding: 15px 30px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; display: none; margin: 10px; }
+        #submit-btn { background: var(--ebh-green); color: white; }
+        #next-step-btn { background: var(--ebh-blue); color: white; }
+        .locked-info { color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div id="start-page">
+        <div class="card">
+            <h2>Lastverteilung</h2>
+            <p>Du musst gleich zwei Lastverteilungen konfigurieren. Konfiguriere sie logisch und sinnvoll.</p>
+            <button class="btn-start" onclick="showSimulation()">Lastverteilung starten ➔</button>
+        </div>
+    </div>
+
+    <div id="sim-page">
+        <div class="header-bar">
+            <div><b>Projekt: Kleines Büro</b></div>
+            <div id="progress-text">Geräte: 0/8</div>
+        </div>
+
+        <div class="instructions"><span id="hint">Wähle ein Gerät oder eine Sicherung aus.</span></div>
+
+        <div class="container">
+            <div class="column" id="sicherungen">
+                <h3>Verteiler</h3>
+                <script>
+                    for(let i=1; i<=5; i++) {
+                        document.write(`
+                        <div class="item" id="S${i}" data-type="s" data-max="3680">
+                            <b>Sicherung S${i} (16A)</b>
+                            <div class="load-info" id="load-info-S${i}">Last: 0W / 3680W</div>
+                            <div class="load-bar-bg"><div class="load-bar-fill" id="bar-S${i}"></div></div>
+                            <div class="assigned-list" id="list-S${i}">Leer</div>
+                        </div>`);
+                    }
+                </script>
+                <div class="item emergency-circuit" id="S12" data-type="s" data-max="3680">
+                    <b>S12: Sonderkreis (Sicherheit)</b>
+                    <div class="load-info" id="load-info-S12">Last: 0W / 3680W</div>
+                    <div class="load-bar-bg"><div class="load-bar-fill" id="bar-S12"></div></div>
+                    <div class="assigned-list" id="list-S12">Leer</div>
+                </div>
+            </div>
+
+            <div class="column" id="geraete">
+                <h3>Geräte (Lasten)</h3>
+                <div class="item" id="G1" data-type="g" data-watts="5000">Maschine A (5.000W)</div>
+                <div class="item" id="G2" data-type="g" data-watts="2000">Arbeitsplatz 1 (2.000W)</div>
+                <div class="item" id="G3" data-type="g" data-watts="1500">Kaffeemaschine (1.500W)</div>
+                <div class="item" id="G4" data-type="g" data-watts="800">Beleuchtung (800W)</div>
+                <div class="item" id="G5" data-type="g" data-watts="2200">Server-Rack (2.200W)</div>
+                <div class="item" id="G6" data-type="g" data-watts="1200">Kopierer (1.200W)</div>
+                <div class="item" id="G7" data-type="g" data-watts="200">BMA Zentrale (200W)</div>
+                <div class="item" id="G8" data-type="g" data-watts="400">Notbeleuchtung (400W)</div>
+            </div>
+        </div>
+        
+        <div class="action-area">
+            <div id="lock-info" class="locked-info">Verkabelung unvollständig...</div>
+            <button id="submit-btn" onclick="checkFinal()">Prüfung & Info-Bericht</button>
+            <button id="next-step-btn" onclick="window.location.href='Main3.html'">Nächste Seite ➔</button>
+        </div>
+        
+        <div id="result-log" style="margin-top:20px; padding:20px; display:none; background:white; border-radius:8px; border: 2px solid #ccc;"></div>
+    </div>
+
+    <script>
+        const TOTAL_G = 8;
+        let selectedG = null;
+        let selectedS = null; // Neu: Merkt sich die gewählte Sicherung
+        let splitMode = false;
+        let selectedSicherungen = [];
+        let connections = {}; 
+
+        function showSimulation() {
+            document.getElementById('start-page').style.display = 'none';
+            document.getElementById('sim-page').style.display = 'block';
+        }
+
+        document.querySelectorAll('[data-type="g"]').forEach(g => {
+            if (parseInt(g.getAttribute('data-watts')) > 3680) {
+                let btn = document.createElement('button');
+                btn.className = 'split-btn'; btn.innerText = 'Last aufteilen';
+                btn.onclick = (e) => { e.stopPropagation(); startSplit(g); };
+                g.appendChild(btn);
+            }
+        });
+
+        function startSplit(g) {
+            resetSelection();
+            selectedG = g; splitMode = true;
+            g.classList.add('selected');
+            document.getElementById('hint').innerHTML = "<b>Split-Modus:</b> Wähle min. 2 Sicherungen für die Last.";
+        }
+
+        document.querySelectorAll('.item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (item.classList.contains('connected-g')) return;
+                let type = item.getAttribute('data-type');
+                
+                // --- SPLIT MODUS LOGIK ---
+                if (splitMode) {
+                    if (item === selectedG) {
+                        if (selectedSicherungen.length > 1) finalize(selectedG, selectedSicherungen);
+                    } else if (type === 's' && !selectedSicherungen.includes(item.id)) {
+                        selectedSicherungen.push(item.id); item.classList.add('selected');
+                    }
+                    return;
+                }
+
+                // --- NORMALER MODUS LOGIK (Bidirektional) ---
+                if (type === 'g') {
+                    if (selectedS) {
+                        // Falls schon eine Sicherung gewählt war -> Zuweisen
+                        finalize(item, [selectedS.id]);
+                    } else {
+                        // Gerät als ersten Partner wählen
+                        if (selectedG) selectedG.classList.remove('selected');
+                        selectedG = item;
+                        item.classList.add('selected');
+                        document.getElementById('hint').innerText = "Wähle nun eine Sicherung.";
+                    }
+                } else if (type === 's') {
+                    if (selectedG) {
+                        // Falls schon ein Gerät gewählt war -> Zuweisen
+                        finalize(selectedG, [item.id]);
+                    } else {
+                        // Sicherung als ersten Partner wählen
+                        if (selectedS) selectedS.classList.remove('selected');
+                        selectedS = item;
+                        item.classList.add('selected');
+                        document.getElementById('hint').innerText = "Wähle nun ein Gerät aus der rechten Liste.";
+                    }
+                }
+            });
+        });
+
+        function finalize(gEl, sIds) {
+            connections[gEl.id] = sIds;
+            gEl.classList.remove('selected'); 
+            gEl.classList.add('connected-g');
+            if(gEl.querySelector('.split-btn')) gEl.querySelector('.split-btn').style.display = 'none';
+            let name = gEl.firstChild.textContent;
+            gEl.innerHTML = `${name} ➔ <b>${sIds.join(', ')}</b> <button class="delete-btn" onclick="removeConn('${gEl.id}', '${name}')">X</button>`;
+            sIds.forEach(id => { 
+                document.getElementById(id).classList.remove('selected'); 
+                updateSicherungDisplay(id); 
+            });
+            updateProgress(); resetSelection();
+        }
+
+        function removeConn(gId, originalName) {
+            let sIds = connections[gId]; delete connections[gId];
+            let gEl = document.getElementById(gId);
+            gEl.classList.remove('connected-g'); gEl.innerHTML = originalName;
+            if (parseInt(gEl.getAttribute('data-watts')) > 3680) {
+                let btn = document.createElement('button');
+                btn.className = 'split-btn'; btn.innerText = 'Last aufteilen';
+                btn.onclick = (e) => { e.stopPropagation(); startSplit(gEl); };
+                gEl.appendChild(btn);
+            }
+            sIds.forEach(id => updateSicherungDisplay(id));
+            updateProgress();
+            document.getElementById('next-step-btn').style.display = 'none';
+        }
+
+        function updateSicherungDisplay(sId) {
+            let totalWatts = 0, names = [];
+            for (let gId in connections) {
+                if (connections[gId].includes(sId)) {
+                    totalWatts += (parseInt(document.getElementById(gId).getAttribute('data-watts')) / connections[gId].length);
+                    names.push(document.getElementById(gId).firstChild.textContent.split(' (')[0]);
+                }
+            }
+            document.getElementById('list-' + sId).innerText = names.join(', ') || 'Leer';
+            document.getElementById('load-info-' + sId).innerText = `Last: ${Math.round(totalWatts)}W / 3680W`;
+            let perc = Math.min((totalWatts / 3680) * 100, 100);
+            document.getElementById('bar-' + sId).style.width = perc + '%';
+            document.getElementById('bar-' + sId).style.background = totalWatts > 3680 ? '#dc3545' : '#28a745';
+        }
+
+        function updateProgress() {
+            let count = Object.keys(connections).length;
+            document.getElementById('progress-text').innerText = `Geräte: ${count}/${TOTAL_G}`;
+            document.getElementById('submit-btn').style.display = (count === TOTAL_G) ? 'inline-block' : 'none';
+            document.getElementById('lock-info').style.display = (count === TOTAL_G) ? 'none' : 'block';
+        }
+
+        function resetSelection() {
+            if(selectedG) selectedG.classList.remove('selected');
+            if(selectedS) selectedS.classList.remove('selected'); // Neu
+            selectedSicherungen.forEach(id => document.getElementById(id).classList.remove('selected'));
+            selectedG = null; 
+            selectedS = null; // Neu
+            selectedSicherungen = []; 
+            splitMode = false;
+            document.getElementById('hint').innerText = "Wähle ein Gerät oder eine Sicherung aus.";
+        }
+
+        function checkFinal() {
+            let log = document.getElementById('result-log');
+            log.style.display = 'block'; log.innerHTML = "<h3>Abnahme-Checkliste</h3>";
+            let allOk = true;
+
+            if (connections['G4'][0] !== connections['G5'][0]) {
+                log.innerHTML += "<p style='color:red;'>❌ Kopplungs-Fehler: IT & Licht müssen gemeinsam hängen.</p>";
+                allOk = false;
+            }
+            if(!connections['G7']?.includes('S12') || !connections['G8']?.includes('S12')) {
+                log.innerHTML += "<p style='color:red;'>❌ Sicherheits-Fehler: BMA & Notlicht müssen auf S12.</p>";
+                allOk = false;
+            }
+            
+            ["S1", "S2", "S3", "S4", "S5", "S12"].forEach(id => {
+                let total = 0;
+                for(let g in connections) if(connections[g].includes(id)) total += (parseInt(document.getElementById(g).getAttribute('data-watts')) / connections[g].length);
+                if(total > 3680) { log.innerHTML += `<p style='color:red;'>❌ Überlast auf Sicherung ${id}!</p>`; allOk = false; }
+            });
+
+            if(allOk) {
+                log.innerHTML += "<h2 style='color:green;'>✅ Prüfung bestanden!</h2>";
+                log.innerHTML += `
+                    <div class="info-summary">
+                        <h4>📋 Anlagen-Zusammenfassung (Info)</h4>
+                        <ul>
+                            <li><b>Notstromversorgung:</b> Die Brandmeldeanlage (G7) und die Notbeleuchtung (G8) sind auf dem autarken Kreis S12 gesichert.</li>
+                            <li><b>IT-Wartung:</b> Die Kopplung von IT-Rack (G5) und Beleuchtung (G4) stellt sicher, dass Techniker bei Arbeiten an der IT nicht im Dunkeln stehen (gemeinsame Freischaltung).</li>
+                            <li><b>Lastmanagement:</b> Die schwere Last von Maschine A (5kW) wurde erfolgreich auf mehrere Stromkreise verteilt, um Leitungserwärmung zu vermeiden.</li>
+                        </ul>
+                    </div>`;
+                document.getElementById('next-step-btn').style.display = 'inline-block';
+                document.getElementById('submit-btn').style.display = 'none';
+            }
+            log.scrollIntoView();
+        }
+    </script>
+</body>
+</html>

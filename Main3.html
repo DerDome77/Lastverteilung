@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBH Master-System: Intelligente Lastverteilung</title>
+    <style>
+        :root { --ebh-blue: #003366; --ebh-gold: #ffcc00; --starkstrom-color: #1e43bd; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+        #sim-page { padding: 20px; }
+        .header-bar { background: var(--ebh-blue); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .container { display: flex; justify-content: space-around; gap: 20px; }
+        .column { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; width: 48%; min-height: 1150px; }
+        .item { padding: 8px; margin: 5px 0; background: #f8f9fa; cursor: pointer; border: 1px solid #dee2e6; border-radius: 6px; font-size: 0.8em; transition: 0.2s; position: relative; }
+        .item:hover { background: #eef1f4; border-color: var(--ebh-blue); }
+        .selected { background: var(--ebh-gold) !important; border-color: orange !important; box-shadow: 0 0 10px rgba(255,204,0,0.5); }
+        .active-split { animation: pulse 1.5s infinite; border: 2px solid var(--ebh-gold) !important; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .connected-g { background: #d4edda !important; color: #155724; cursor: default; }
+        .starkstrom { border: 2px solid var(--starkstrom-color) !important; background: #fff5f5; }
+        .load-info { font-size: 0.75em; font-weight: bold; margin-top: 5px; color: #555; }
+        .load-bar-bg { width: 100%; height: 5px; background: #eee; border-radius: 3px; margin-top: 3px; overflow: hidden; }
+        .load-bar-fill { height: 100%; width: 0%; background: #28a745; transition: width 0.3s; }
+        .split-btn { background: var(--ebh-blue); color: white; border: none; border-radius: 3px; padding: 1px 5px; font-size: 0.7em; cursor: pointer; margin-top: 3px; display: block; }
+        .delete-btn { background: #dc3545; color: white; border: none; border-radius: 3px; padding: 1px 6px; font-size: 0.7em; margin-left: 10px; cursor: pointer; float: right; }
+        .assigned-list { font-size: 0.7em; color: var(--ebh-blue); margin-top: 3px; border-top: 1px dashed #ccc; padding-top: 2px; font-style: italic; }
+        .instructions { background: #fffdeb; border: 1px solid #ffeeba; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Buttons */
+        #submit-btn, #next-step-btn { padding: 15px 30px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; display: none; }
+        #next-step-btn { background: var(--ebh-blue); }
+        .tip-btn { background: var(--ebh-gold); border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .locked-info { color: #888; font-style: italic; font-size: 0.9em; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="sim-page">
+    <div class="header-bar">
+        <div><b>Projekt:</b> Bürokomplex</div>
+        <div id="progress-text">Geräte: 0/21</div>
+    </div>
+
+    <div class="instructions" id="instruction-box">
+        <span id="hint">Wähle ein Gerät aus, um mit der Verkabelung zu beginnen.</span>
+    </div>
+
+    <div class="container">
+        <div class="column" id="sicherungen">
+            <h3>Verteilung</h3>
+            <div class="item starkstrom" id="ST1" data-type="s" data-max="11040">
+                <b>ST1: Starkstrom (11.040W)</b>
+                <div class="load-info" id="load-info-ST1">Last: 0W / 11040W</div>
+                <div class="load-bar-bg"><div class="load-bar-fill" id="bar-ST1"></div></div>
+                <div class="assigned-list" id="list-ST1">Leer</div>
+            </div>
+            <div class="item starkstrom" id="ST2" data-type="s" data-max="11040">
+                <b>ST2: Starkstrom (11.040W)</b>
+                <div class="load-info" id="load-info-ST2">Last: 0W / 11040W</div>
+                <div class="load-bar-bg"><div class="load-bar-fill" id="bar-ST2"></div></div>
+                <div class="assigned-list" id="list-ST2">Leer</div>
+            </div>
+            <hr>
+            <script>
+                for(let i=1; i<=12; i++) {
+                    let label = (i === 12) ? "S12: Sonderkreis (3680W)" : `S${i}: 16A Kreis (3680W)`;
+                    let style = (i === 12) ? 'style="border: 2px solid #555;"' : '';
+                    document.write(`
+                    <div class="item" id="S${i}" data-type="s" data-max="3680" ${style}>
+                        <b>${label}</b>
+                        <div class="load-info" id="load-info-S${i}">Last: 0W / 3680W</div>
+                        <div class="load-bar-bg"><div class="load-bar-fill" id="bar-S${i}"></div></div>
+                        <div class="assigned-list" id="list-S${i}">Leer</div>
+                    </div>`);
+                }
+            </script>
+        </div>
+
+        <div class="column" id="geraete">
+            <h3>Geräte (Gesamt 44.110W)</h3>
+            <div class="item" id="G1" data-type="g" data-watts="21000">Durchlauferhitzer (21.000W)</div>
+            <div class="item" id="G2" data-type="g" data-watts="11000">Ladesäule Parkplatz (11.000W)</div>
+            <div class="item" id="G3" data-type="g" data-watts="5500">Hebebühne Werkstatt (5.500W)</div>
+            <div class="item" id="G4" data-type="g" data-watts="1600" data-mon="true">IT-Rack Server (1.600W)</div>
+            <div class="item" id="G5" data-type="g" data-watts="900" data-mon="true">Flurlicht (900W)</div>
+            <div class="item" id="G6" data-type="g" data-watts="2400">Arbeitsplätze 1.OG (2.400W)</div>
+            <div class="item" id="G7" data-type="g" data-watts="2200">Arbeitsplätze EG (2.200W)</div>
+            <div class="item" id="G8" data-type="g" data-watts="1100">Kopierstation (1.100W)</div>
+            <div class="item" id="G9" data-type="g" data-watts="1200">Kaffeemaschine (1.200W)</div>
+            <div class="item" id="G10" data-type="g" data-watts="1400">Groß-Spülmaschine (1.400W)</div>
+            <div class="item" id="G11" data-type="g" data-watts="3500">Industrie-Kompressor (3.500W)</div>
+            <div class="item" id="G12" data-type="g" data-watts="1000">Werkbank Werkzeug (1.000W)</div>
+            <div class="item" id="G13" data-type="g" data-watts="1100">Lüftungsanlage (1.100W)</div>
+            <div class="item" id="G14" data-type="g" data-watts="900">Garagentor-Antrieb (900W)</div>
+            <div class="item" id="G15" data-type="g" data-watts="600">Außenstrahler Logo (600W)</div>
+            <div class="item" id="G16" data-type="g" data-watts="2400">Heizungspumpen (2.400W)</div>
+            <div class="item" id="G17" data-type="g" data-watts="150" data-saf="true">BMA Zentrale (150W)</div>
+            <div class="item" id="G18" data-type="g" data-watts="350" data-saf="true">Akku-Notleuchten (350W)</div>
+            <div class="item" id="G19" data-type="g" data-watts="410" data-saf="true">Fahrstuhl-Modul (410W)</div>
+            <div class="item" id="G20" data-type="g" data-watts="1100">Alarmanlage & Kamera (1.100W)</div>
+            <div class="item" id="G21" data-type="g" data-watts="2000">E-Bike Station (2.000W)</div>
+        </div>
+    </div>
+    
+    <div style="text-align:center; margin-top:20px; min-height: 80px;">
+        <div id="lock-info" class="locked-info">Verkabelung unvollständig...</div>
+        <button id="submit-btn" onclick="checkFinal()">Anlage zur Abnahme einreichen</button>
+        <button id="next-step-btn" onclick="window.location.href='Loesung2.html'">Zu den Musterlösungen →</button>
+    </div>
+    
+    <div id="result-log" style="margin-top:20px; padding:20px; display:none; background:white; border-radius:8px; border: 2px solid #ccc;"></div>
+</div>
+
+<script>
+    const TOTAL_G = 21;
+    let selectedG = null;
+    let splitMode = false;
+    let selectedSicherungen = [];
+    let connections = {}; 
+    
+    document.querySelectorAll('[data-type="g"]').forEach(g => {
+        let watts = parseInt(g.getAttribute('data-watts'));
+        if (watts > 3680) {
+            let btn = document.createElement('button');
+            btn.className = 'split-btn'; btn.innerText = 'Last aufteilen';
+            btn.onclick = (e) => { e.stopPropagation(); startSplit(g); };
+            g.appendChild(btn);
+        }
+    });
+
+    function startSplit(g) {
+        resetSelection();
+        selectedG = g; 
+        splitMode = true;
+        g.classList.add('selected', 'active-split');
+        document.getElementById('hint').innerHTML = `<b>Split-Modus:</b> Wähle Sicherungen aus. Klicke <b>erneut auf das Gerät</b> zum Beenden.`;
+    }
+
+    document.querySelectorAll('.item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (item.classList.contains('connected-g')) return;
+            let type = item.getAttribute('data-type');
+            
+            if (splitMode && item === selectedG) {
+                if (selectedSicherungen.length > 0) finalize(selectedG, selectedSicherungen);
+                else resetSelection();
+                return;
+            }
+
+            if (splitMode) {
+                if (type === 's' && !selectedSicherungen.includes(item.id)) {
+                    selectedSicherungen.push(item.id); 
+                    item.classList.add('selected');
+                }
+            } else {
+                if (!selectedG && type === 'g') { 
+                    selectedG = item; 
+                    item.classList.add('selected'); 
+                    document.getElementById('hint').innerText = "Wähle nun eine Sicherung aus.";
+                }
+                else if (selectedG && type === 's') { finalize(selectedG, [item.id]); }
+                else { resetSelection(); }
+            }
+        });
+    });
+
+    function finalize(gEl, sIds) {
+        connections[gEl.id] = sIds;
+        gEl.classList.remove('selected', 'active-split'); 
+        gEl.classList.add('connected-g');
+        if(gEl.querySelector('.split-btn')) gEl.querySelector('.split-btn').style.display = 'none';
+        let name = gEl.firstChild.textContent;
+        gEl.innerHTML = `${name} ➔ <b>${sIds.join(', ')}</b> <button class="delete-btn" onclick="removeConn('${gEl.id}', '${name}')">X</button>`;
+        sIds.forEach(id => { 
+            document.getElementById(id).classList.remove('selected'); 
+            updateSicherungDisplay(id); 
+        });
+        updateProgress(); 
+        resetSelection();
+    }
+
+    function removeConn(gId, originalName) {
+        let sIds = connections[gId]; 
+        delete connections[gId];
+        let gEl = document.getElementById(gId);
+        gEl.classList.remove('connected-g'); 
+        gEl.innerHTML = originalName;
+        if (parseInt(gEl.getAttribute('data-watts')) > 3680) {
+            let btn = document.createElement('button');
+            btn.className = 'split-btn'; btn.innerText = 'Last aufteilen';
+            btn.onclick = (e) => { e.stopPropagation(); startSplit(gEl); };
+            gEl.appendChild(btn);
+        }
+        sIds.forEach(id => updateSicherungDisplay(id));
+        updateProgress();
+    }
+
+    function updateSicherungDisplay(sId) {
+        let sEl = document.getElementById(sId);
+        let listEl = document.getElementById('list-' + sId), 
+            infoEl = document.getElementById('load-info-' + sId), 
+            barEl = document.getElementById('bar-' + sId);
+        let totalWatts = 0, names = [];
+        let maxSicherung = parseInt(sEl.getAttribute('data-max'));
+        for (let gId in connections) {
+            if (connections[gId].includes(sId)) {
+                let gWatts = parseInt(document.getElementById(gId).getAttribute('data-watts'));
+                let sIdsOfG = connections[gId];
+                let smallS = sIdsOfG.filter(id => document.getElementById(id).getAttribute('data-max') == "3680");
+                let largeS = sIdsOfG.filter(id => document.getElementById(id).getAttribute('data-max') != "3680");
+                let load = 0;
+                if (sIdsOfG.length === 1) load = gWatts;
+                else {
+                    if (maxSicherung === 3680) load = (gWatts > (smallS.length * 3680) && largeS.length > 0) ? 3680 : gWatts/sIdsOfG.length;
+                    else load = (gWatts - (smallS.length * 3680)) / largeS.length;
+                }
+                totalWatts += load;
+                names.push(document.getElementById(gId).firstChild.textContent.split(' (')[0]);
+            }
+        }
+        listEl.innerText = names.join(', ') || 'Leer';
+        infoEl.innerText = `Last: ${Math.round(totalWatts)}W / ${maxSicherung}W`;
+        let perc = Math.min((totalWatts / maxSicherung) * 100, 100);
+        barEl.style.width = perc + '%';
+        barEl.style.background = totalWatts > maxSicherung ? '#dc3545' : (totalWatts > (maxSicherung * 0.9) ? '#ffc107' : '#28a745');
+    }
+
+    function updateProgress() {
+        let count = Object.keys(connections).length;
+        document.getElementById('progress-text').innerText = `Geräte: ${count}/${TOTAL_G}`;
+        if(count === TOTAL_G) {
+            document.getElementById('submit-btn').style.display = 'inline-block';
+            document.getElementById('lock-info').style.display = 'none';
+        } else {
+            document.getElementById('submit-btn').style.display = 'none';
+            document.getElementById('lock-info').style.display = 'block';
+        }
+    }
+
+    function resetSelection() {
+        if(selectedG) selectedG.classList.remove('selected', 'active-split');
+        selectedSicherungen.forEach(id => document.getElementById(id).classList.remove('selected'));
+        selectedG = null; selectedSicherungen = []; splitMode = false;
+        document.getElementById('hint').innerText = "Wähle ein Gerät aus.";
+    }
+
+    function checkFinal() {
+        let log = document.getElementById('result-log');
+        log.style.display = 'block'; log.innerHTML = "<h3>Abnahme-Protokoll</h3>";
+        let allOk = true;
+        const sIds = ["ST1", "ST2", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"];
+        
+        sIds.forEach(sId => {
+            let sEl = document.getElementById(sId);
+            let max = parseInt(sEl.getAttribute('data-max'));
+            let total = 0;
+            for(let gId in connections) { 
+                if(connections[gId].includes(sId)) {
+                    let gWatts = parseInt(document.getElementById(gId).getAttribute('data-watts'));
+                    let sIdsOfG = connections[gId];
+                    let small = sIdsOfG.filter(id => document.getElementById(id).getAttribute('data-max') == "3680");
+                    let large = sIdsOfG.filter(id => document.getElementById(id).getAttribute('data-max') != "3680");
+                    if (sIdsOfG.length === 1) total += gWatts;
+                    else if (max === 3680) total += (gWatts > (small.length * 3680) && large.length > 0) ? 3680 : gWatts/sIdsOfG.length;
+                    else total += (gWatts - (small.length * 3680)) / large.length;
+                }
+            }
+            if(total > max + 1) { 
+                log.innerHTML += `<p style='color:red;'>❌ Sicherung ${sId} überlastet!</p>`; 
+                allOk = false; 
+            }
+        });
+
+        if(!(connections['G4'] && connections['G5'] && connections['G4'][0] === connections['G5'][0])) {
+            log.innerHTML += "<p style='color:red;'>❌ IT-Fehler: G4 & G5 koppeln!</p>"; allOk = false;
+        }
+
+        let safetyCorrect = connections['G17']?.includes('S12') && connections['G18']?.includes('S12') && connections['G19']?.includes('S12');
+        if(!safetyCorrect) { log.innerHTML += "<p style='color:red;'>❌ S12 Sicherheitsbelegung fehlt!</p>"; allOk = false; }
+
+        if(allOk) {
+            log.innerHTML += "<h2 style='color:green;'>Anlage erfolgreich abgenommen!</h2>";
+            // Änderungen nach Erfolg:
+            document.getElementById('instruction-box').style.display = 'none'; // Anleitung weg
+            document.getElementById('submit-btn').style.display = 'none'; // Submit weg
+            document.getElementById('next-step-btn').style.display = 'inline-block'; // Weiter Button her
+        }
+        log.scrollIntoView();
+    }
+</script>
+</body>
+</html>
