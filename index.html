@@ -41,7 +41,6 @@
         .split-btn { background: var(--ebh-blue); color: white; border: none; border-radius: 3px; padding: 3px 8px; font-size: 0.75em; cursor: pointer; margin-top: 5px; display: block; }
         .delete-btn { background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; font-size: 0.7em; float: right; cursor: pointer; }
         
-        /* Infobox im Protokoll */
         .info-summary { background: #f0f7ff; border-left: 5px solid var(--ebh-blue); padding: 15px; margin-top: 15px; text-align: left; font-size: 0.85em; }
         .info-summary h4 { margin-top: 0; color: var(--ebh-blue); }
 
@@ -117,7 +116,7 @@
     <script>
         const TOTAL_G = 8;
         let selectedG = null;
-        let selectedS = null; // Neu: Merkt sich die gewählte Sicherung
+        let selectedS = null; 
         let splitMode = false;
         let selectedSicherungen = [];
         let connections = {}; 
@@ -148,7 +147,6 @@
                 if (item.classList.contains('connected-g')) return;
                 let type = item.getAttribute('data-type');
                 
-                // --- SPLIT MODUS LOGIK ---
                 if (splitMode) {
                     if (item === selectedG) {
                         if (selectedSicherungen.length > 1) finalize(selectedG, selectedSicherungen);
@@ -158,13 +156,10 @@
                     return;
                 }
 
-                // --- NORMALER MODUS LOGIK (Bidirektional) ---
                 if (type === 'g') {
                     if (selectedS) {
-                        // Falls schon eine Sicherung gewählt war -> Zuweisen
                         finalize(item, [selectedS.id]);
                     } else {
-                        // Gerät als ersten Partner wählen
                         if (selectedG) selectedG.classList.remove('selected');
                         selectedG = item;
                         item.classList.add('selected');
@@ -172,10 +167,8 @@
                     }
                 } else if (type === 's') {
                     if (selectedG) {
-                        // Falls schon ein Gerät gewählt war -> Zuweisen
                         finalize(selectedG, [item.id]);
                     } else {
-                        // Sicherung als ersten Partner wählen
                         if (selectedS) selectedS.classList.remove('selected');
                         selectedS = item;
                         item.classList.add('selected');
@@ -238,10 +231,10 @@
 
         function resetSelection() {
             if(selectedG) selectedG.classList.remove('selected');
-            if(selectedS) selectedS.classList.remove('selected'); // Neu
+            if(selectedS) selectedS.classList.remove('selected'); 
             selectedSicherungen.forEach(id => document.getElementById(id).classList.remove('selected'));
             selectedG = null; 
-            selectedS = null; // Neu
+            selectedS = null; 
             selectedSicherungen = []; 
             splitMode = false;
             document.getElementById('hint').innerText = "Wähle ein Gerät oder eine Sicherung aus.";
@@ -252,12 +245,13 @@
             log.style.display = 'block'; log.innerHTML = "<h3>Abnahme-Checkliste</h3>";
             let allOk = true;
 
-            }
+            // SICHERHEITS-PRÜFUNG: BMA & Notlicht müssen auf S12
             if(!connections['G7']?.includes('S12') || !connections['G8']?.includes('S12')) {
-                log.innerHTML += "<p style='color:red;'>❌ Sicherheits-Fehler: BMA & Notlicht müssen auf S12.</p>";
+                log.innerHTML += "<p style='color:red;'>❌ Sicherheits-Fehler: BMA & Notlicht müssen auf S12 liegen.</p>";
                 allOk = false;
             }
             
+            // ÜBERLAST-PRÜFUNG
             ["S1", "S2", "S3", "S4", "S5", "S12"].forEach(id => {
                 let total = 0;
                 for(let g in connections) if(connections[g].includes(id)) total += (parseInt(document.getElementById(g).getAttribute('data-watts')) / connections[g].length);
@@ -270,8 +264,9 @@
                     <div class="info-summary">
                         <h4>📋 Anlagen-Zusammenfassung (Info)</h4>
                         <ul>
-                            <li><b>Notstromversorgung:</b> Die Brandmeldeanlage (G7) und die Notbeleuchtung (G8) sind auf dem autarken Kreis S12 gesichert.</li>
-                            <li><b>Lastmanagement:</b> Die schwere Last von Maschine A (5kW) wurde erfolgreich auf mehrere Stromkreise verteilt, um Leitungserwärmung zu vermeiden.</li>
+                            <li><b>Sicherheitsbeleuchtung:</b> Brandmeldeanlage (G7) und Notbeleuchtung (G8) sind vorschriftsmäßig auf dem Sonderkreis S12 zusammengefasst.</li>
+                            <li><b>Lastmanagement:</b> Die Hochlast-Maschine A (5kW) wurde zur Vermeidung von Leitungsbränden auf mehrere Phasen/Sicherungen verteilt.</li>
+                            <li><b>Selektivität:</b> Alle Endstromkreise sind innerhalb der Belastungsgrenze von 3680W (16A) abgesichert.</li>
                         </ul>
                     </div>`;
                 document.getElementById('next-step-btn').style.display = 'inline-block';
@@ -281,7 +276,4 @@
         }
     </script>
 </body>
-
 </html>
-
-
